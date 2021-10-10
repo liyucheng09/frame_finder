@@ -1,10 +1,11 @@
 from lyc.utils import get_tokenizer, get_model
 from lyc.data import get_hf_ds_scripts_path, get_tokenized_ds, processor, get_dataloader
 from lyc.train import get_base_hf_args, HfTrainer
+from lyc.eval import tagging_eval_for_trainer
 import sys
 import numpy as np
 import datasets
-from transformers import RobertaForTokenClassification, DataCollatorForTokenClassification
+from transformers import RobertaForTokenClassification, DataCollatorForTokenClassification, Trainer
 from transformers.integrations import TensorBoardCallback
 
 def combine_func(df):
@@ -65,7 +66,7 @@ if __name__ == '__main__':
     model = get_model(RobertaForTokenClassification, model_name, num_labels = len(label_list))
     data_collator = DataCollatorForTokenClassification(tokenizer, max_length=128)
 
-    trainer = HfTrainer(
+    trainer = Trainer(
         model=model,
         args=args,
         train_dataset=train_ds,
@@ -73,10 +74,11 @@ if __name__ == '__main__':
         data_collator=data_collator,
         tokenizer=tokenizer,
         callbacks=[TensorBoardCallback()],
+        compute_metrics=tagging_eval_for_trainer
     )
 
-    trainer.train()
-    trainer.save_model()
+    # trainer.train()
+    # trainer.save_model()
 
     result = trainer.evaluate()
     print(result)
