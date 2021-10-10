@@ -16,8 +16,17 @@ def combine_func(df):
     Returns:
         a one-line dict
     """
+    label_values = np.stack(df['frame_tags'].values)
+    processed = np.zeros_like(label_values)
 
-    aggregated_tags = np.stack(df['frame_tags'].values).sum(axis=0)
+    for token_id in range(label_values.shape[1]):
+        labels = label_values[:, token_id]
+        for i in range(len(labels)):
+            if labels[i] != 0:
+                processed[i, token_id] = labels[i]
+                break
+
+    aggregated_tags = processed.sum(axis=0)
     result = df.iloc[0].to_dict()
     result['frame_tags'] = aggregated_tags
 
@@ -47,7 +56,7 @@ if __name__ == '__main__':
 
     args = get_base_hf_args(
         output_dir='checkpoints/frame_finder/',
-        train_batch_size=8,
+        train_batch_size=24,
         epochs=3,
         lr=5e-5,
         logging_steps = 1
