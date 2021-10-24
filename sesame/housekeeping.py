@@ -17,7 +17,7 @@ from __future__ import division
 import random
 import sys
 
-from .globalconfig import UNK
+from globalconfig import UNK
 
 class FspDict:
     def __init__(self):

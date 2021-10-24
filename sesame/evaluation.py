@@ -17,7 +17,7 @@ from __future__ import division
 import numpy as np
 import time
 
-from .dataio import read_conll, read_frame_maps
+from dataio import read_conll, read_frame_maps
 
 def calc_f(scores):
     tp, fp, fn = scores

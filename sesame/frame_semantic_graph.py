@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .globalconfig import DEBUG_MODE
+from globalconfig import DEBUG_MODE
 
 class LexicalUnit(object):
 
@@ -20,8 +20,10 @@ class LexicalUnit(object):
         self.id = id
         self.posid = posid
 
-    def get_str(self, ludict, luposdict):
-        return ludict.getstr(self.id) + "." + luposdict.getstr(self.posid)
+    def get_str(self):
+    # def get_str(self, ludict, luposdict):
+        return self.id + "." + self.posid
+        # return ludict.getstr(self.id) + "." + luposdict.getstr(self.posid)
 
     def __hash__(self):
         return hash((self.id, self.posid))

@@ -7,6 +7,7 @@ import numpy as np
 import datasets
 from transformers import RobertaForTokenClassification, DataCollatorForTokenClassification, Trainer
 from transformers.integrations import TensorBoardCallback
+import torch
 
 def combine_func(df):
     """combine a dataframe group to a one-line instance.
@@ -33,6 +34,48 @@ def combine_func(df):
 
     return result
 
+def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds):
+    results={}
+
+    target_index = None
+    for i in range(len(ds['frame_tags'])):
+        if ds['frame_tags'][i]:
+            target_index = i
+    tokens = ds['tokens']
+    tokens[target_index] = '<mask>'
+    ds['tokens'] = tokens
+
+    for k,v in ds.items():
+        if 'id' in k:
+            results[k]=v
+            continue
+        if 'tag' not in k:
+            out_=tokenizer(v, is_split_into_words=True)
+            results.update(out_)
+    labels={}
+    for i, column in enumerate([k for k in ds.keys() if 'tag' in k]):
+        label = ds[column]
+        words_ids = out_.word_ids()
+        previous_word_idx = None
+        label_ids = []
+        is_target = []
+        for word_idx in words_ids:
+            if word_idx is None:
+                label_ids.append(-100)
+            elif word_idx!=previous_word_idx:
+                label_ids.append(label[word_idx])
+            else:
+                label_ids.append(-100)
+            if word_idx == target_index:
+                is_target.append(1)
+            else:
+                is_target.append(0)
+            previous_word_idx = word_idx
+        labels[column] = label_ids
+        labels['is_target'] = is_target
+    
+    results.update(labels)
+    return results
 
 if __name__ == '__main__':
     model_name, data_dir = sys.argv[1:]
@@ -42,18 +85,25 @@ if __name__ == '__main__':
     ds = datasets.load_dataset(script, data_dir=data_dir)
 
     label_list = ds['train'].features['frame_tags'].feature.names
-    for k,v in ds.items():
-        ds[k] = processor.combine(v, 'sent_id', combine_func)
-    processor.tokenizer = tokenizer
+    # for k,v in ds.items():
+    #     ds[k] = processor.combine(v, 'sent_id', combine_func)
+
+    # processor.tokenizer = tokenizer
+    # ds = ds.map(
+    #     processor._tokenize_and_alingn_labels
+    # )
+
     ds = ds.map(
-        processor._tokenize_and_alingn_labels
+        tokenize_alingn_labels_replace_with_mask_and_add_type_ids
     )
 
     train_ds = datasets.concatenate_datasets([ds['train'], ds['test']])
     train_ds = train_ds.rename_column('frame_tags', 'labels')
+    train_ds = train_ds.rename_column('is_target', 'token_type_ids')
 
     eval_ds = ds['validation']
     eval_ds = eval_ds.rename_column('frame_tags', 'labels')
+    eval_ds = eval_ds.rename_column('is_target', 'token_type_ids')
 
     args = get_base_hf_args(
         output_dir='/user/HS502/yl02706/frame_finder/checkpoints/ff-bert/',
@@ -64,6 +114,9 @@ if __name__ == '__main__':
     )
 
     model = get_model(RobertaForTokenClassification, model_name, num_labels = len(label_list))
+    model.roberta.embeddings.token_type_embeddings = torch.nn.Embedding(2, 768)
+    model._init_weights(model.roberta.embeddings.token_type_embeddings)
+
     data_collator = DataCollatorForTokenClassification(tokenizer, max_length=128)
 
     trainer = Trainer(
