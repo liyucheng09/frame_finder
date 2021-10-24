@@ -56,11 +56,11 @@ if __name__ == '__main__':
     eval_ds = eval_ds.rename_column('frame_tags', 'labels')
 
     args = get_base_hf_args(
-        output_dir='checkpoints/frame_finder/',
+        output_dir='/user/HS502/yl02706/frame_finder/checkpoints/ff-bert/',
         train_batch_size=24,
         epochs=3,
         lr=5e-5,
-        logging_steps = 1
+        logging_steps = 50
     )
 
     model = get_model(RobertaForTokenClassification, model_name, num_labels = len(label_list))
@@ -77,8 +77,8 @@ if __name__ == '__main__':
         compute_metrics=tagging_eval_for_trainer
     )
 
-    # trainer.train()
-    # trainer.save_model()
+    trainer.train()
+    trainer.save_model()
 
     result = trainer.evaluate()
     print(result)

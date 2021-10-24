@@ -10,12 +10,12 @@ JobBatchName = "FrameFinder"
 
 # --------------------------------------------
 # Executable and its arguments
-executable    = $ENV(HOME)/open-sesame/ff.sh
+executable    = $ENV(HOME)/frame_finder/ff.sh
 
 # ---------------------------------------------------
 # Universe (vanilla, docker)
 universe         = docker
-docker_image     = nvidia/cuda:10.1-cudnn7-runtime-ubuntu16.04
+docker_image     = nvidia/cuda:10.2-cudnn7-runtime-ubuntu16.04
 
 # -------------------------------------------------
 # Event, out and error logs
@@ -33,7 +33,7 @@ environment = "mount=$ENV(HOME)"
 # -------------------------------------
 # Requirements for the Job (Requirements are explained in further detail in example09.submit_file)
 # NOTE: HasStornext is not valid on orca.
-requirements = (CUDAGlobalMemoryMb > 5000) && (CUDAGlobalMemoryMb <  20000) && \
+requirements = (CUDAGlobalMemoryMb > 5000) && (CUDAGlobalMemoryMb <  25000) && \
 #              (HasStornext) && \
 			   (CUDACapability > 2.0)
 
@@ -42,7 +42,7 @@ requirements = (CUDAGlobalMemoryMb > 5000) && (CUDAGlobalMemoryMb <  20000) && \
 request_GPUs     = 1
 # this needs to be specified for the AI@Surrey cluster if requesting a GPU
 +GPUMem          = 10000
-request_CPUs     = 4
+request_CPUs     = 1
 request_memory   = 8G
 
 #This job will complete in less than 1 hour

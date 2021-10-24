@@ -1,4 +1,2 @@
 #!/bin/bash
-source /vol/hpc-software/software/Anaconda3/2020.07/etc/profile.d/conda.sh
-conda activate lyc
-python /user/HS502/yl02706/open-sesame/frame_finder.py "distilroberta-base", "data/open_sesame_v1_data/fn1.7"
+/user/HS502/yl02706/.conda/envs/lyc/bin/python3 /user/HS502/yl02706/frame_finder/frame_finder.py bert-base-uncased /user/HS502/yl02706/open-sesame/data/open_sesame_v1_data/fn1.7
