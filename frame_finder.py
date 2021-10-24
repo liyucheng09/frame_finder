@@ -7,6 +7,7 @@ import numpy as np
 import datasets
 from transformers import RobertaForTokenClassification, DataCollatorForTokenClassification, Trainer
 from transformers.integrations import TensorBoardCallback
+import torch
 
 def combine_func(df):
     """combine a dataframe group to a one-line instance.
@@ -32,20 +33,6 @@ def combine_func(df):
     result['frame_tags'] = aggregated_tags
 
     return result
-
-def replace_target_word_with_mask(example):
-    tokens = example['tokens']
-    frames = example['frame_tags']
-    target_index = None
-    for i in range(len(frames)):
-        if frames[i]:
-            target_index = i
-    is_target = [1 if i==target_index else 0 for i in range(len(tokens))]
-    tokens[target_index] = '<mask>'
-
-    example['tokens'] = tokens
-    example['is_target'] = is_target
-    return example
 
 def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds):
     results={}
@@ -112,9 +99,11 @@ if __name__ == '__main__':
 
     train_ds = datasets.concatenate_datasets([ds['train'], ds['test']])
     train_ds = train_ds.rename_column('frame_tags', 'labels')
+    train_ds = train_ds.rename_column('is_target', 'token_type_ids')
 
     eval_ds = ds['validation']
     eval_ds = eval_ds.rename_column('frame_tags', 'labels')
+    eval_ds = eval_ds.rename_column('is_target', 'token_type_ids')
 
     args = get_base_hf_args(
         output_dir='checkpoints/frame_finder/',
@@ -124,7 +113,10 @@ if __name__ == '__main__':
         logging_steps = 1
     )
 
-    model = get_model(RobertaForTokenClassification, model_name, num_labels = len(label_list), type_vocab_size=2)
+    model = get_model(RobertaForTokenClassification, model_name, num_labels = len(label_list))
+    model.roberta.embeddings.token_type_embeddings = torch.nn.Embedding(2, 768)
+    model._init_weights(model.roberta.embeddings.token_type_embeddings)
+
     data_collator = DataCollatorForTokenClassification(tokenizer, max_length=128)
 
     trainer = Trainer(
