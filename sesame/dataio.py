@@ -23,9 +23,9 @@ import xml.etree.ElementTree as et
 
 from nltk.corpus import BracketParseCorpusReader
 
-from .conll09 import CLABELDICT, VOCDICT, POSDICT, FRAMEDICT, FEDICT, LUDICT, LUPOSDICT, CoNLL09Element, CoNLL09Example
-from .globalconfig import CONSTIT_MAP, EMPTY_LABEL, LU_INDEX, FRAME_DIR, EMBEDDINGS_FILE, FRAME_REL_FILE, PTB_DATA_DIR, PARSER_DATA_DIR
-from .sentence import Sentence
+from conll09 import CLABELDICT, VOCDICT, POSDICT, FRAMEDICT, FEDICT, LUDICT, LUPOSDICT, CoNLL09Element, CoNLL09Example
+from globalconfig import CONSTIT_MAP, EMPTY_LABEL, LU_INDEX, FRAME_DIR, EMBEDDINGS_FILE, FRAME_REL_FILE, PTB_DATA_DIR, PARSER_DATA_DIR
+from sentence import Sentence
 
 
 def read_conll(conll_file, syn_type=None):
@@ -194,14 +194,16 @@ def read_fes_lus(frame_file):
         if fe.attrib["coreType"] == "Core": corefes.append(feid)
 
     lus = []
+    lus_str = []
     for lu in root.iter('{http://framenet.icsi.berkeley.edu}lexUnit'):
         lu_fields = lu.attrib["name"].split(".")
+        lus_str.append(lu.attrib["name"])
         luid = LUDICT.addstr(lu_fields[0])
         LUPOSDICT.addstr(lu_fields[1])
         lus.append(luid)
     f.close()
 
-    return frid, fes, corefes, lus
+    return frid, fes, corefes, lus, lus_str
 
 
 def read_frame_maps():
@@ -236,6 +238,7 @@ def read_related_lus():
     sys.stderr.write("\nReading the frame-LU map from " + FRAME_DIR + " ...\n")
 
     lu_to_frame_dict = {}
+    lu_to_frame_dict_str = {}
     tot_frames = 0.
     max_frames = 0
     tot_lus = 0.
@@ -250,17 +253,20 @@ def read_related_lus():
         if framef.endswith("xsl"):
             continue
         tot_frames += 1
-        frm, fes, corefes, lus = read_fes_lus(framef)
+        frm, fes, corefes, lus, lus_str = read_fes_lus(framef)
 
-        for l in lus:
+        for l, l_str in zip(lus, lus_str):
+            frm_str = FRAMEDICT.getstr(frm)
             tot_lus += 1
             if l not in lu_to_frame_dict:
                 lu_to_frame_dict[l] = set([])
+            if l_str not in lu_to_frame_dict_str:
+                lu_to_frame_dict_str[l_str] = set([])
             lu_to_frame_dict[l].add(frm)
+            lu_to_frame_dict_str[l_str].add(frm_str)
             if len(lu_to_frame_dict[l]) > max_frames:
                 max_frames = len(lu_to_frame_dict[l])
                 longestlu = l
-
 
             if frm not in frame_to_lu_dict:
                 frame_to_lu_dict[frm] = set([])
@@ -291,7 +297,7 @@ def read_related_lus():
                         max_lus,
                         FRAMEDICT.getstr(longestfrm)))
 
-    return lu_to_frame_dict, related_lus
+    return lu_to_frame_dict, related_lus, lu_to_frame_dict_str
 
 
 def get_wvec_map():

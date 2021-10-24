@@ -14,19 +14,26 @@
 # limitations under the License.
 from copy import deepcopy
 
-from .frame_semantic_graph import LexicalUnit, Frame, FrameElement, FrameSemParse
-from .globalconfig import EMPTY_LABEL, EMPTY_FE, BIO_INDEX_DICT, INDEX_BIO_DICT, DEBUG_MODE, SINGULAR, BEGINNING, INSIDE
-from .housekeeping import FspDict, extract_spans
+from frame_semantic_graph import LexicalUnit, Frame, FrameElement, FrameSemParse
+from globalconfig import EMPTY_LABEL, EMPTY_FE, BIO_INDEX_DICT, INDEX_BIO_DICT, DEBUG_MODE, SINGULAR, BEGINNING, INSIDE
+from housekeeping import FspDict, extract_spans
+import os
+import pickle
 
-VOCDICT = FspDict()
-LEMDICT = FspDict()
-POSDICT = FspDict()
-FRAMEDICT = FspDict()
-LUDICT = FspDict()
-LUPOSDICT = FspDict()
-FEDICT = FspDict()
-DEPRELDICT = FspDict()
-CLABELDICT = FspDict()
+if os.path.exists('dicts.pkl'):
+    with open('dicts.pkl', 'rb') as f:
+        VOCDICT, LEMDICT, POSDICT, FRAMEDICT, LUDICT, LUPOSDICT, \
+            FEDICT, DEPRELDICT, CLABELDICT = pickle.load(f)
+else:
+    VOCDICT = FspDict()
+    LEMDICT = FspDict()
+    POSDICT = FspDict()
+    FRAMEDICT = FspDict()
+    LUDICT = FspDict()
+    LUPOSDICT = FspDict()
+    FEDICT = FspDict()
+    DEPRELDICT = FspDict()
+    CLABELDICT = FspDict()
 
 
 class CoNLL09Element:

@@ -16,8 +16,19 @@
 import nltk
 lemmatizer = nltk.stem.WordNetLemmatizer()
 
-from .conll09 import CoNLL09Element, CoNLL09Example
-from .sentence import Sentence
+from conll09 import CoNLL09Element, CoNLL09Example
+from sentence import Sentence
+from dataclasses import dataclass
+
+@dataclass
+class Instance:
+    tokens: list[str]
+    lemmas: list[str]
+    postags: list[str]
+    is_target: list[int]
+    labels: list[int]
+    targets: list[str] = None
+    frames: list[list[str]] = None
 
 
 def make_data_instance(text, index):
@@ -37,5 +48,24 @@ def make_data_instance(text, index):
 
     sentence = Sentence(syn_type=None, elements=elements)
     instance = CoNLL09Example(sentence, elements)
+
+    return instance
+
+def make_data_instance_vua(text, is_target, labels):
+    """
+    Takes a line of text and creates a CoNLL09Example instance from it.
+    """
+    if not isinstance(text, list):
+        tokenized = nltk.tokenize.word_tokenize(text.lstrip().rstrip())
+    else:
+        tokenized = text
+    pos_tagged = [p[1] for p in nltk.pos_tag(tokenized)]
+
+    lemmatized = [lemmatizer.lemmatize(tokenized[i])
+                    if not pos_tagged[i].startswith("V") else lemmatizer.lemmatize(tokenized[i], pos='v')
+                    for i in range(len(tokenized))]
+
+    instance = Instance(tokens = tokenized, postags=pos_tagged, lemmas=lemmatized, 
+        is_target=is_target, labels=labels)
 
     return instance
