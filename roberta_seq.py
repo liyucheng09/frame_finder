@@ -2,7 +2,7 @@ from lyc.utils import get_model, get_tokenizer
 from lyc.data import get_hf_ds_scripts_path, get_tokenized_ds, get_dataloader
 import sys
 from lyc.train import get_base_hf_args, HfTrainer
-from lyc.eval import tagging_eval_for_trainer, write_predict_to_file
+from lyc.eval import tagging_eval_for_trainer, write_predict_to_file, eval_with_weights
 from transformers import RobertaForTokenClassification, DataCollatorForTokenClassification, Trainer
 from transformers.integrations import TensorBoardCallback
 import os
@@ -55,3 +55,5 @@ if __name__ == '__main__':
     # test_ds = datasets.Dataset.from_dict(ds['test'][:10])
     pred_out = trainer.predict(ds['test'])
     write_predict_to_file(pred_out)
+    result = eval_with_weights(pred_out, ds['test']['is_target'])
+    print(result)
