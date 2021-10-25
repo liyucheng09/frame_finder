@@ -2,15 +2,16 @@ from lyc.utils import get_model, get_tokenizer
 from lyc.data import get_hf_ds_scripts_path, get_tokenized_ds, get_dataloader
 import sys
 from lyc.train import get_base_hf_args, HfTrainer
-from lyc.eval import tagging_eval_for_trainer
+from lyc.eval import tagging_eval_for_trainer, write_predict_to_file
 from transformers import RobertaForTokenClassification, DataCollatorForTokenClassification, Trainer
 from transformers.integrations import TensorBoardCallback
 import os
+import datasets
 
 if __name__ == '__main__':
 
     model_name, data_dir, = sys.argv[1:]
-    save_folder = '/vol/research/nlg/frame_finder'
+    save_folder = ''
     output_dir = os.path.join(save_folder, 'checkpoints/roberta_seq/')
     logging_dir = os.path.join(save_folder, 'logs/')
 
@@ -25,7 +26,7 @@ if __name__ == '__main__':
     # dl = get_dataloader(ds, cols=['attention_mask', 'input_ids', 'labels'])
     args = get_base_hf_args(
         output_dir=output_dir,
-        logging_steps=50,
+        logging_steps=1,
         logging_dir = logging_dir,
         lr=5e-5,
         train_batch_size=24,
@@ -48,5 +49,9 @@ if __name__ == '__main__':
     trainer.train()
     trainer.save_model()
 
-    result = trainer.evaluate()
-    print(result)
+    # result = trainer.evaluate()
+    # print(result)
+
+    # test_ds = datasets.Dataset.from_dict(ds['test'][:10])
+    pred_out = trainer.predict(ds['test'])
+    write_predict_to_file(pred_out)
