@@ -106,11 +106,12 @@ if __name__ == '__main__':
     eval_ds = eval_ds.rename_column('is_target', 'token_type_ids')
 
     args = get_base_hf_args(
-        output_dir='/user/HS502/yl02706/frame_finder/checkpoints/ff-bert/',
+        output_dir='/vol/research/nlg/frame_finder/checkpoints/roberta/',
         train_batch_size=24,
         epochs=3,
         lr=5e-5,
-        logging_steps = 50
+        logging_steps = 50,
+        logging_dir = '/vol/research/nlg/frame_finder/logs'
     )
 
     model = get_model(RobertaForTokenClassification, model_name, num_labels = len(label_list))

@@ -29,6 +29,7 @@ should_transfer_files = YES
 
 # Make certain project spaces available in container
 environment = "mount=$ENV(HOME)"
+environment = "mount='/vol/research/nlg'"
 
 # -------------------------------------
 # Requirements for the Job (Requirements are explained in further detail in example09.submit_file)
