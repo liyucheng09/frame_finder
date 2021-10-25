@@ -5,24 +5,28 @@ from lyc.train import get_base_hf_args, HfTrainer
 from lyc.eval import tagging_eval_for_trainer
 from transformers import RobertaForTokenClassification, DataCollatorForTokenClassification, Trainer
 from transformers.integrations import TensorBoardCallback
-
+import os
 
 if __name__ == '__main__':
 
-    model_name, = sys.argv[1:]
+    model_name, data_dir, = sys.argv[1:]
+    save_folder = '/vol/research/nlg/frame_finder'
+    output_dir = os.path.join(save_folder, 'checkpoints/roberta_seq/')
+    logging_dir = os.path.join(save_folder, 'logs/')
+
     tokenizer = get_tokenizer(model_name, add_prefix_space=True)
 
     p = get_hf_ds_scripts_path('vua20')
-    data_files={'train': '/Users/liyucheng/projects/acl2021-metaphor-generation-conceptual-main/EM/data/VUA20/train.tsv', 'test': '/Users/liyucheng/projects/acl2021-metaphor-generation-conceptual-main/EM/data/VUA20/test.tsv'}
+    data_files={'train': os.path.join(data_dir, 'train.tsv'), 'test': os.path.join(data_dir, 'test.tsv')}
     ds = get_tokenized_ds(p, tokenizer, tokenize_func='tagging', \
         tokenize_cols=['tokens'], tagging_cols={'is_target':0, 'labels':-100}, \
         data_files=data_files, name='combined', batched=False)
 
     # dl = get_dataloader(ds, cols=['attention_mask', 'input_ids', 'labels'])
     args = get_base_hf_args(
-        output_dir='checkpoints/roberta_seq/',
+        output_dir=output_dir,
         logging_steps=50,
-        logging_dir = 'logs/',
+        logging_dir = logging_dir,
         lr=5e-5,
         train_batch_size=24,
     )

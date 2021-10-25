@@ -119,3 +119,4 @@ ENV/
 .vscode
 checkpoints/
 lyc/
+docker_stderror
