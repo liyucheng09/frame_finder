@@ -7,13 +7,15 @@ from transformers import RobertaForTokenClassification, DataCollatorForTokenClas
 from transformers.integrations import TensorBoardCallback
 import os
 import datasets
+import torch
 
 if __name__ == '__main__':
 
     model_name, data_dir, = sys.argv[1:]
-    save_folder = ''
+    save_folder = '/vol/research/nlg/frame_finder/'
     output_dir = os.path.join(save_folder, 'checkpoints/roberta_seq/')
     logging_dir = os.path.join(save_folder, 'logs/')
+    prediction_output_file = os.path.join(output_dir, 'prediction_output.csv')
 
     tokenizer = get_tokenizer(model_name, add_prefix_space=True)
 
@@ -22,6 +24,7 @@ if __name__ == '__main__':
     ds = get_tokenized_ds(p, tokenizer, tokenize_func='tagging', \
         tokenize_cols=['tokens'], tagging_cols={'is_target':0, 'labels':-100}, \
         data_files=data_files, name='combined', batched=False)
+    ds = ds.rename_column('is_target', 'token_type_ids')
 
     # dl = get_dataloader(ds, cols=['attention_mask', 'input_ids', 'labels'])
     args = get_base_hf_args(
@@ -33,7 +36,9 @@ if __name__ == '__main__':
     )
 
     data_collator = DataCollatorForTokenClassification(tokenizer, max_length=128)
-    model = get_model(RobertaForTokenClassification, model_name, num_labels = 2)
+    model = get_model(RobertaForTokenClassification, model_name, num_labels = 2, type_vocab_size=2)
+    # model.roberta.embeddings.token_type_embeddings = torch.nn.Embedding(2, 768)
+    # model._init_weights(model.roberta.embeddings.token_type_embeddings)
 
     trainer = Trainer(
         model=model,
@@ -46,14 +51,14 @@ if __name__ == '__main__':
         compute_metrics=tagging_eval_for_trainer
     )
 
-    trainer.train()
-    trainer.save_model()
+    # trainer.train()
+    # trainer.save_model()
 
     # result = trainer.evaluate()
     # print(result)
 
     # test_ds = datasets.Dataset.from_dict(ds['test'][:10])
     pred_out = trainer.predict(ds['test'])
-    write_predict_to_file(pred_out)
-    result = eval_with_weights(pred_out, ds['test']['is_target'])
+    write_predict_to_file(pred_out, out_file=prediction_output_file)
+    result = eval_with_weights(pred_out, ds['test']['token_type_ids'])
     print(result)
