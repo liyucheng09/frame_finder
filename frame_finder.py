@@ -8,6 +8,8 @@ import datasets
 from transformers import RobertaForTokenClassification, DataCollatorForTokenClassification, Trainer
 from transformers.integrations import TensorBoardCallback
 import torch
+import pandas as pd
+from model import FrameFinder, DataCollator
 
 def combine_func(df):
     """combine a dataframe group to a one-line instance.
@@ -27,29 +29,41 @@ def combine_func(df):
             if labels[i] != 0:
                 processed[i, token_id] = labels[i]
                 break
-
     aggregated_tags = processed.sum(axis=0)
     result = df.iloc[0].to_dict()
     result['frame_tags'] = aggregated_tags
 
     return result
 
-def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds):
+def get_sent_label(ds, combine_func, group_column):
+
+    ds = ds.to_pandas()
+    combined = []
+    for sent_id, group in ds.groupby(group_column):
+        sent_label=combine_func(group)['frame_tags'].tolist()
+        sent_label = [i for i in sent_label if i]
+        group['sent_labels']=[sent_label for i in range(len(group.index))]
+        combined.append(group)
+    return datasets.Dataset.from_pandas(pd.concat(combined))
+
+def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds, do_mask=True):
     results={}
 
     target_index = None
     for i in range(len(ds['frame_tags'])):
         if ds['frame_tags'][i]:
             target_index = i
-    tokens = ds['tokens']
-    tokens[target_index] = '<mask>'
-    ds['tokens'] = tokens
+    
+    if do_mask:
+        tokens = ds['tokens']
+        tokens[target_index] = '<mask>'
+        ds['tokens'] = tokens
 
     for k,v in ds.items():
         if 'id' in k:
             results[k]=v
             continue
-        if 'tag' not in k:
+        if k == 'tokens':
             out_=tokenizer(v, is_split_into_words=True)
             results.update(out_)
     labels={}
@@ -78,7 +92,11 @@ def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds):
     return results
 
 if __name__ == '__main__':
-    model_name, data_dir = sys.argv[1:]
+    model_name, data_dir, = sys.argv[1:]
+    add_sent_labels = True
+    do_mask = True
+    # output_path = '/vol/research/nlg/frame_finder/'
+    output_path = ''
 
     tokenizer = get_tokenizer(model_name, add_prefix_space=True)
     script = get_hf_ds_scripts_path('sesame')
@@ -87,14 +105,15 @@ if __name__ == '__main__':
     label_list = ds['train'].features['frame_tags'].feature.names
     # for k,v in ds.items():
     #     ds[k] = processor.combine(v, 'sent_id', combine_func)
-
-    # processor.tokenizer = tokenizer
-    # ds = ds.map(
-    #     processor._tokenize_and_alingn_labels
-    # )
+    if add_sent_labels:
+        model_class = FrameFinder
+        for k,v in ds.items():
+            ds[k] = get_sent_label(v, combine_func, 'sent_id')
+    else:
+        model_class=RobertaForTokenClassification
 
     ds = ds.map(
-        tokenize_alingn_labels_replace_with_mask_and_add_type_ids
+        tokenize_alingn_labels_replace_with_mask_and_add_type_ids, fn_kwargs={'do_mask':do_mask}
     )
 
     train_ds = datasets.concatenate_datasets([ds['train'], ds['test']])
@@ -106,19 +125,21 @@ if __name__ == '__main__':
     eval_ds = eval_ds.rename_column('is_target', 'token_type_ids')
 
     args = get_base_hf_args(
-        output_dir='/vol/research/nlg/frame_finder/checkpoints/roberta/',
-        train_batch_size=24,
+        output_dir = output_path + 'checkpoints/roberta/',
+        train_batch_size=2,
         epochs=3,
         lr=5e-5,
-        logging_steps = 50,
-        logging_dir = '/vol/research/nlg/frame_finder/logs'
+        logging_steps = 1,
+        eval_steps = 1,
+        evaluation_strategy = 'steps',
+        logging_dir = output_path + 'logs',
     )
 
-    model = get_model(RobertaForTokenClassification, model_name, num_labels = len(label_list))
+    model = get_model(model_class, model_name, num_labels = len(label_list))
     model.roberta.embeddings.token_type_embeddings = torch.nn.Embedding(2, 768)
     model._init_weights(model.roberta.embeddings.token_type_embeddings)
 
-    data_collator = DataCollatorForTokenClassification(tokenizer, max_length=128)
+    data_collator = DataCollator(tokenizer, max_length=128)
 
     trainer = Trainer(
         model=model,

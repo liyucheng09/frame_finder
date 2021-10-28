@@ -50,7 +50,7 @@ if __name__ == '__main__':
     script_path = get_hf_ds_scripts_path('vua20')
 
     data_files={'train': os.path.join(data_dir, 'train.tsv'), 'test': os.path.join(data_dir, 'test.tsv')}
-    ds = datasets.load_dataset(script_path, data_files=data_files)
+    ds = datasets.load_dataset(script_path, data_files=data_files, split='test[:10%]')
     ds = ds.map(tokenize_alingn_labels_replace_with_mask_and_add_type_ids)
     ds.remove_columns_('label')
     ds.rename_column_('target_mask', 'token_type_ids')
@@ -63,12 +63,12 @@ if __name__ == '__main__':
     
     # dl = get_dataloader(ds['test'], batch_size=8, cols=['input_ids', 'attention_mask', 'word_index', 'words_ids', 'label'])
     
-    model = get_model(RobertaForTokenClassification, model_name)
-    # model.roberta.embeddings.token_type_embeddings = torch.nn.Embedding(2, 768)
-
     with open('frame_labels.json', encoding='utf-8') as f:
         label2id = json.load(f)
     id2label = {v:k for k,v in label2id.items()}
+
+    model = get_model(RobertaForTokenClassification, model_name)
+    # model.roberta.embeddings.token_type_embeddings = torch.nn.Embedding(2, 768)
 
     data_collator = DataCollatorForTokenClassification(tokenizer, max_length=128)
     trainer = Trainer(model=model, data_collator=data_collator, tokenizer=tokenizer)
