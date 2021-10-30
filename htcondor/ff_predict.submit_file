@@ -6,11 +6,11 @@
 
 #---------------------------------------------
 # Name your batch so it's easy to distinguish in the q.
-JobBatchName = "FrameFinder"
+JobBatchName = "FrameFinder_Predict"
 
 # --------------------------------------------
 # Executable and its arguments
-executable    = $ENV(HOME)/frame_finder/shells/ff.sh
+executable    = $ENV(HOME)/frame_finder/shells/predict.sh
 
 # ---------------------------------------------------
 # Universe (vanilla, docker)

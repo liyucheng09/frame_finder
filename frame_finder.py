@@ -95,20 +95,20 @@ if __name__ == '__main__':
     model_name, data_dir, = sys.argv[1:]
     add_sent_labels = True
     do_mask = True
-    # output_path = '/vol/research/nlg/frame_finder/'
-    output_path = ''
+    output_path = '/vol/research/nlg/frame_finder/'
+    # output_path = ''
 
     tokenizer = get_tokenizer(model_name, add_prefix_space=True)
     script = get_hf_ds_scripts_path('sesame')
     ds = datasets.load_dataset(script, data_dir=data_dir)
 
     label_list = ds['train'].features['frame_tags'].feature.names
-    # for k,v in ds.items():
-    #     ds[k] = processor.combine(v, 'sent_id', combine_func)
+    for k,v in ds.items():
+        ds[k] = processor.combine(v, 'sent_id', combine_func)
     if add_sent_labels:
         model_class = FrameFinder
-        for k,v in ds.items():
-            ds[k] = get_sent_label(v, combine_func, 'sent_id')
+        # for k,v in ds.items():
+        #     ds[k] = get_sent_label(v, combine_func, 'sent_id')
     else:
         model_class=RobertaForTokenClassification
 
@@ -125,14 +125,13 @@ if __name__ == '__main__':
     eval_ds = eval_ds.rename_column('is_target', 'token_type_ids')
 
     args = get_base_hf_args(
-        output_dir = output_path + 'checkpoints/roberta/',
-        train_batch_size=2,
+        output_dir = output_path + 'checkpoints/sent_no_mask_ff/',
+        train_batch_size=24,
         epochs=3,
         lr=5e-5,
-        logging_steps = 1,
-        eval_steps = 1,
-        evaluation_strategy = 'steps',
-        logging_dir = output_path + 'logs',
+        logging_steps = 50,
+        evaluation_strategy = 'epoch',
+        logging_dir = output_path + 'logs/sent_no_mask_ff',
     )
 
     model = get_model(model_class, model_name, num_labels = len(label_list))
