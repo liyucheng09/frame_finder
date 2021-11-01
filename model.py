@@ -1,4 +1,4 @@
-from transformers import RobertaForTokenClassification, DataCollatorForTokenClassification
+from transformers import RobertaForTokenClassification, DataCollatorForTokenClassification, Trainer
 from transformers.modeling_outputs import TokenClassifierOutput
 import torch
 
@@ -6,10 +6,10 @@ class FrameFinder(RobertaForTokenClassification):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sent_classifier=torch.nn.Linear(self.config.hidden_size, self.config.num_labels)
-        self.pooler=torch.nn.Linear(self.config.hidden_size, self.config.hidden_size)
-        self.pooler_activation = torch.nn.Tanh()
+        # self.pooler=torch.nn.Linear(self.config.hidden_size, self.config.hidden_size)
+        # self.pooler_activation = torch.nn.Tanh()
         self._init_weights(self.sent_classifier)
-        self._init_weights(self.pooler)
+        # self._init_weights(self.pooler)
 
     def forward(
         self,
@@ -48,9 +48,9 @@ class FrameFinder(RobertaForTokenClassification):
         sequence_output = self.dropout(sequence_output)
 
         cls_embedding = sequence_output[:, 0]
-        pooled_output = self.pooler(cls_embedding)
-        pooled_output = self.pooler_activation(pooled_output)
-        sent_logits = self.sent_classifier(pooled_output)
+        # pooled_output = self.pooler(cls_embedding)
+        # pooled_output = self.pooler_activation(pooled_output)
+        sent_logits = self.sent_classifier(cls_embedding)
 
         logits = self.classifier(sequence_output)
         logits[:, 0] = sent_logits
@@ -70,17 +70,9 @@ class FrameFinder(RobertaForTokenClassification):
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
 
             if sent_labels is not None:
-                # sent_target = torch.zeros(len(sent_labels), self.config.num_labels).scatter_(1, sent_labels, 1)
-                sent_labels = torch.stack([torch.nn.functional.one_hot(torch.tensor(v), num_classes=self.config.num_labels).sum(dim=0) for v in sent_labels]).float()
-                sent_labels = sent_labels.to(self.device)
-            else:
-                labels[labels==-100]=0
-                sent_labels = torch.zeros(labels.size(0), self.num_labels, device=self.device).scatter_(1, labels, 1)
-                sent_labels[:, 0] = 0
-            loss_bcel = torch.nn.BCEWithLogitsLoss(pos_weight=sent_labels)
-            loss_sent = loss_bcel(logits[:, 0], sent_labels)
-            # loss += 1 * loss_sent
-            loss = loss_sent
+                loss_bcel = torch.nn.BCEWithLogitsLoss()
+                loss_sent = loss_bcel(logits[:, 0], sent_labels.float())
+                loss += 3 * loss_sent
 
         if not return_dict:
             output = (logits,) + outputs[2:]
@@ -119,3 +111,6 @@ class DataCollator(DataCollatorForTokenClassification):
 
         batch = {k: torch.tensor(v, dtype=torch.int64) if k !='sent_labels' else v for k, v in batch.items()}
         return batch
+
+# class FrameTrainer(Trainer):
+

@@ -97,10 +97,10 @@ def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds, do_mask=True):
 
 if __name__ == '__main__':
     model_name, data_dir, = sys.argv[1:]
-    add_sent_labels = False
+    add_sent_labels = True
     do_mask = False
-    output_path = '/vol/research/nlg/frame_finder/'
-    # output_path = ''
+    # output_path = '/vol/research/nlg/frame_finder/'
+    output_path = ''
 
     tokenizer = get_tokenizer(model_name, add_prefix_space=True)
     script = get_hf_ds_scripts_path('sesame')
@@ -129,7 +129,7 @@ if __name__ == '__main__':
     eval_ds = eval_ds.rename_column('is_target', 'token_type_ids')
 
     args = get_base_hf_args(
-        output_dir = output_path + 'checkpoints/no_mask_ff/',
+        output_dir = output_path + 'checkpoints/sent_no_mask_ff/',
         train_batch_size=32,
         epochs=4,
         lr=5e-5,
@@ -137,14 +137,15 @@ if __name__ == '__main__':
         # evaluation_strategy = 'epoch',
         evaluation_strategy = 'steps',
         eval_steps=50,
-        logging_dir = output_path + 'logs/no_mask_ff',
+        label_names=['labels', 'sent_labels'],
+        logging_dir = output_path + 'logs/sent_no_mask_ff',
     )
 
     model = get_model(model_class, model_name, num_labels = len(label_list))
     model.roberta.embeddings.token_type_embeddings = torch.nn.Embedding(2, 768)
     model._init_weights(model.roberta.embeddings.token_type_embeddings)
 
-    data_collator = DataCollator(tokenizer, max_length=128)
+    data_collator = DataCollatorForTokenClassification(tokenizer, max_length=128)
 
     trainer = Trainer(
         model=model,
@@ -154,7 +155,7 @@ if __name__ == '__main__':
         data_collator=data_collator,
         tokenizer=tokenizer,
         callbacks=[TensorBoardCallback()],
-        compute_metrics=frame_finder_eval_for_trainer
+        compute_metrics=frame_finder_eval_for_trainer,
     )
 
     trainer.train()
