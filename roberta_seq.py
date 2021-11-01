@@ -59,6 +59,6 @@ if __name__ == '__main__':
 
     # test_ds = datasets.Dataset.from_dict(ds['test'][:10])
     pred_out = trainer.predict(ds['test'])
-    write_predict_to_file(pred_out, out_file=prediction_output_file)
+    write_predict_to_file(pred_out, ds['test']['tokens'], out_file=prediction_output_file)
     result = eval_with_weights(pred_out, ds['test']['token_type_ids'])
     print(result)
