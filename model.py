@@ -3,6 +3,9 @@ from transformers.modeling_outputs import TokenClassifierOutput
 import torch
 
 class FrameFinder(RobertaForTokenClassification):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sent_classifier(self.config.hidden_size, self.config.num_labels)
 
     def forward(
         self,
@@ -40,7 +43,9 @@ class FrameFinder(RobertaForTokenClassification):
         sequence_output = outputs[0]
 
         sequence_output = self.dropout(sequence_output)
+        sent_logits = self.sent_classifier(sequence_output[:, 0])
         logits = self.classifier(sequence_output)
+        logits[:, 0] = sent_logits
 
         loss = None
         if labels is not None:
