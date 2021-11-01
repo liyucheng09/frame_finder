@@ -84,7 +84,7 @@ if __name__ == '__main__':
     id2label = {v:k for k,v in label2id.items()}
 
     model = get_model(RobertaForTokenClassification, model_name)
-    # model.roberta.embeddings.token_type_embeddings = torch.nn.Embedding(2, 768)
+    model.roberta.embeddings.token_type_embeddings = torch.nn.Embedding(2, 768)
 
     data_collator = DataCollatorForTokenClassification(tokenizer, max_length=128)
     trainer = Trainer(model=model, data_collator=data_collator, tokenizer=tokenizer)
@@ -96,11 +96,14 @@ if __name__ == '__main__':
     literal_pred = literal_pred.predictions
 
     df = ds.to_pandas()
-    df['frames'] = np.argmax(pred, axis=-1)[np.arange(len(df.index)), df['tokenized_taregt_word_index'].values]
-    df['literal_frame'] = np.argmax(literal_pred, axis=-1)[np.arange(len(df.index)), 1]
+    # df['frames'] = np.argmax(pred, axis=-1)[np.arange(len(df.index)), df['tokenized_taregt_word_index'].values]
+    # df['literal_frame'] = np.argmax(literal_pred, axis=-1)[np.arange(len(df.index)), 1]
 
-    df['frames'] = df['frames'].apply(lambda x:id2label[x])
-    df['literal_frame'] = df['literal_frame'].apply(lambda x:id2label[x])
+    df['frames'] = np.argsort(pred[np.arange(len(df.index)), df['tokenized_taregt_word_index'].values])[:, :3].tolist()
+    df['literal_frames'] = np.argsort(literal_pred[np.arange(len(df.index)), 1])[:, :3].tolist()
+
+    df['frames'] = df['frames'].apply(lambda x:[id2label[i] for i in x])
+    df['literal_frames'] = df['literal_frames'].apply(lambda x:[id2label[i] for i in x])
 
     file = open(prediction_output_file, 'w', encoding='utf-8')
     for sent_id, group in df.groupby('sent_id'):
@@ -108,8 +111,8 @@ if __name__ == '__main__':
         target_ids = group['word_index'].values
         labels = group['token_level_label'].values
         frames = group['frames'].values
-        literal_frames = group['literal_frame'].values
-        words = group['masked_word'].values
+        literal_frames = group['literal_frames'].values
+        words = group['target_word'].values
         id2label_and_frame = {idx:[label, frame, word, literal_f] for idx, label, frame, word, literal_f in zip(target_ids, labels, frames, words, literal_frames)}
         for w_idx, word in enumerate(tokens):
             if w_idx in target_ids:
@@ -118,6 +121,9 @@ if __name__ == '__main__':
                 frame = id2label_and_frame[w_idx][1]
                 word = id2label_and_frame[w_idx][2]
                 literal_f = id2label_and_frame[w_idx][3]
+
+                frame = '\t'.join(frame)
+                literal_f = '\t'.join(literal_f)
             else:
                 is_target = '_'
                 label = '_'
