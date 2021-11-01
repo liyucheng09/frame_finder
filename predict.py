@@ -9,14 +9,15 @@ import datasets
 import os
 import numpy as np
 
-def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds):
+def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds, do_mask=False):
     results={}
 
     target_index = ds['word_index']
     tokens = ds['tokens']
-    results['masked_word'] = tokens[target_index]
-    tokens[target_index] = '<mask>'
-    ds['tokens'] = tokens
+    results['target_word'] = tokens[target_index]
+    if do_mask:
+        tokens[target_index] = '<mask>'
+        ds['tokens'] = tokens
 
     for k,v in ds.items():
         if k != 'tokens':
@@ -39,9 +40,21 @@ def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds):
     results['token_level_label'] = ds['label']
     return results
 
+def literal_processor(ds):
+    
+    results = {}
+    out = tokenizer(ds['target_word'])
+    words_ids = out.word_ids()
+    target_mask = [1 if i is not None else 0 for i in words_ids]
+    results['target_mask'] = target_mask
+    results.update(out)
+
+    return results
+
 if __name__ == '__main__':
 
     model_name, data_dir, = sys.argv[1:]
+    do_mask = False
     save_folder = ''
     output_dir = os.path.join(save_folder, 'checkpoints/roberta_seq/')
     prediction_output_file = os.path.join(output_dir, 'prediction_output.csv')
@@ -50,8 +63,11 @@ if __name__ == '__main__':
     script_path = get_hf_ds_scripts_path('vua20')
 
     data_files={'train': os.path.join(data_dir, 'train.tsv'), 'test': os.path.join(data_dir, 'test.tsv')}
-    ds = datasets.load_dataset(script_path, data_files=data_files, split='test[:10%]')
-    ds = ds.map(tokenize_alingn_labels_replace_with_mask_and_add_type_ids)
+    ds = datasets.load_dataset(script_path, data_files=data_files, split='test[:10]')
+    ds = ds.map(tokenize_alingn_labels_replace_with_mask_and_add_type_ids, fn_kwargs={'do_mask':do_mask})
+    literal_ds = datasets.Dataset.from_dict({'target_word': ds['target_word']})
+    literal_ds = literal_ds.map(literal_processor)
+
     ds.remove_columns_('label')
     ds.rename_column_('target_mask', 'token_type_ids')
 
@@ -74,10 +90,17 @@ if __name__ == '__main__':
     trainer = Trainer(model=model, data_collator=data_collator, tokenizer=tokenizer)
     
     pred_out = trainer.predict(ds)
+    literal_pred = trainer.predict(literal_ds)
+
     pred = pred_out.predictions
+    literal_pred = literal_pred.predictions
+
     df = ds.to_pandas()
     df['frames'] = np.argmax(pred, axis=-1)[np.arange(len(df.index)), df['tokenized_taregt_word_index'].values]
+    df['literal_frame'] = np.argmax(literal_pred, axis=-1)[np.arange(len(df.index)), 1]
+
     df['frames'] = df['frames'].apply(lambda x:id2label[x])
+    df['literal_frame'] = df['literal_frame'].apply(lambda x:id2label[x])
 
     file = open(prediction_output_file, 'w', encoding='utf-8')
     for sent_id, group in df.groupby('sent_id'):
@@ -85,19 +108,22 @@ if __name__ == '__main__':
         target_ids = group['word_index'].values
         labels = group['token_level_label'].values
         frames = group['frames'].values
+        literal_frames = group['literal_frame'].values
         words = group['masked_word'].values
-        id2label_and_frame = {idx:[label, frame, word] for idx, label, frame, word in zip(target_ids, labels, frames, words)}
+        id2label_and_frame = {idx:[label, frame, word, literal_f] for idx, label, frame, word, literal_f in zip(target_ids, labels, frames, words, literal_frames)}
         for w_idx, word in enumerate(tokens):
             if w_idx in target_ids:
                 is_target = 1
                 label = id2label_and_frame[w_idx][0]
                 frame = id2label_and_frame[w_idx][1]
                 word = id2label_and_frame[w_idx][2]
+                literal_f = id2label_and_frame[w_idx][3]
             else:
                 is_target = '_'
                 label = '_'
                 frame = ''
-            file.write(f"{word}\t{is_target}\t{label}\t{frame}\n")
+                literal_f  = ''
+            file.write(f"{word}\t{is_target}\t{label}\t{frame}\t{literal_f}\n")
         file.write('\n')
     file.close()
 

@@ -6,8 +6,10 @@ class FrameFinder(RobertaForTokenClassification):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.sent_classifier=torch.nn.Linear(self.config.hidden_size, self.config.num_labels)
-        self.pooler=torch.nn.Linear(self.config.hidden_size, self.config.hidden_states)
+        self.pooler=torch.nn.Linear(self.config.hidden_size, self.config.hidden_size)
         self.pooler_activation = torch.nn.Tanh()
+        self._init_weights(self.sent_classifier)
+        self._init_weights(self.pooler)
 
     def forward(
         self,
@@ -67,18 +69,18 @@ class FrameFinder(RobertaForTokenClassification):
             else:
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
 
-        if sent_labels is not None:
-            # sent_target = torch.zeros(len(sent_labels), self.config.num_labels).scatter_(1, sent_labels, 1)
-            sent_labels = torch.stack([torch.nn.functional.one_hot(torch.tensor(v), num_classes=self.config.num_labels).sum(dim=0) for v in sent_labels]).float()
-            sent_labels = sent_labels.to(self.device)
-        else:
-            labels[labels==-100]=0
-            sent_labels = torch.zeros(labels.size(0), self.num_labels, device=self.device).scatter_(1, labels, 1)
-            sent_labels[:, 0] = 0
-        loss_bcel = torch.nn.BCEWithLogitsLoss(pos_weight=sent_labels)
-        loss_sent = loss_bcel(logits[:, 0], sent_labels)
-        # loss += 1 * loss_sent
-        loss = loss_sent
+            if sent_labels is not None:
+                # sent_target = torch.zeros(len(sent_labels), self.config.num_labels).scatter_(1, sent_labels, 1)
+                sent_labels = torch.stack([torch.nn.functional.one_hot(torch.tensor(v), num_classes=self.config.num_labels).sum(dim=0) for v in sent_labels]).float()
+                sent_labels = sent_labels.to(self.device)
+            else:
+                labels[labels==-100]=0
+                sent_labels = torch.zeros(labels.size(0), self.num_labels, device=self.device).scatter_(1, labels, 1)
+                sent_labels[:, 0] = 0
+            loss_bcel = torch.nn.BCEWithLogitsLoss(pos_weight=sent_labels)
+            loss_sent = loss_bcel(logits[:, 0], sent_labels)
+            # loss += 1 * loss_sent
+            loss = loss_sent
 
         if not return_dict:
             output = (logits,) + outputs[2:]
