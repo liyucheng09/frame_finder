@@ -5,7 +5,9 @@ import torch
 class FrameFinder(RobertaForTokenClassification):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.sent_classifier(self.config.hidden_size, self.config.num_labels)
+        self.sent_classifier=torch.nn.Linear(self.config.hidden_size, self.config.num_labels)
+        self.pooler=torch.nn.Linear(self.config.hidden_size, self.config.hidden_states)
+        self.pooler_activation = torch.nn.Tanh()
 
     def forward(
         self,
@@ -41,9 +43,13 @@ class FrameFinder(RobertaForTokenClassification):
         )
 
         sequence_output = outputs[0]
-
         sequence_output = self.dropout(sequence_output)
-        sent_logits = self.sent_classifier(sequence_output[:, 0])
+
+        cls_embedding = sequence_output[:, 0]
+        pooled_output = self.pooler(cls_embedding)
+        pooled_output = self.pooler_activation(pooled_output)
+        sent_logits = self.sent_classifier(pooled_output)
+
         logits = self.classifier(sequence_output)
         logits[:, 0] = sent_logits
 
@@ -67,10 +73,12 @@ class FrameFinder(RobertaForTokenClassification):
             sent_labels = sent_labels.to(self.device)
         else:
             labels[labels==-100]=0
-            sent_labels = torch.zeros(labels.size(0), self.config.num_labels, device=self.device).scatter_(1, labels, 1)
+            sent_labels = torch.zeros(labels.size(0), self.num_labels, device=self.device).scatter_(1, labels, 1)
             sent_labels[:, 0] = 0
-        loss_sent = torch.nn.functional.binary_cross_entropy_with_logits(logits[:, 0, :], sent_labels)
-        loss += 1 * loss_sent
+        loss_bcel = torch.nn.BCEWithLogitsLoss(pos_weight=sent_labels)
+        loss_sent = loss_bcel(logits[:, 0], sent_labels)
+        # loss += 1 * loss_sent
+        loss = loss_sent
 
         if not return_dict:
             output = (logits,) + outputs[2:]

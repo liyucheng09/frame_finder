@@ -95,8 +95,8 @@ if __name__ == '__main__':
     model_name, data_dir, = sys.argv[1:]
     add_sent_labels = True
     do_mask = False
-    output_path = '/vol/research/nlg/frame_finder/'
-    # output_path = ''
+    # output_path = '/vol/research/nlg/frame_finder/'
+    output_path = ''
 
     tokenizer = get_tokenizer(model_name, add_prefix_space=True)
     script = get_hf_ds_scripts_path('sesame')
@@ -126,11 +126,13 @@ if __name__ == '__main__':
 
     args = get_base_hf_args(
         output_dir = output_path + 'checkpoints/sent_no_mask_ff/',
-        train_batch_size=24,
+        train_batch_size=2,
         epochs=3,
         lr=5e-5,
         logging_steps = 50,
-        evaluation_strategy = 'epoch',
+        # evaluation_strategy = 'epoch',
+        evaluation_strategy = 'steps',
+        eval_steps=1,
         logging_dir = output_path + 'logs/sent_no_mask_ff',
     )
 
