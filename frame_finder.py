@@ -50,9 +50,12 @@ def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds, do_mask=True):
     results={}
 
     target_ids = []
+    sent_labels = [0 for i in range(797)]
     for i in range(len(ds['frame_tags'])):
-        if ds['frame_tags'][i]:
+        l = ds['frame_tags'][i]
+        if l:
             target_ids.append(i)
+            sent_labels[l]=1
     
     if do_mask:
         tokens = ds['tokens']
@@ -67,7 +70,7 @@ def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds, do_mask=True):
         if k == 'tokens':
             out_=tokenizer(v, is_split_into_words=True)
             results.update(out_)
-    labels={}
+    labels={'sent_labels': sent_labels}
     for i, column in enumerate([k for k in ds.keys() if 'tag' in k]):
         label = ds[column]
         words_ids = out_.word_ids()
@@ -96,8 +99,8 @@ if __name__ == '__main__':
     model_name, data_dir, = sys.argv[1:]
     add_sent_labels = False
     do_mask = False
-    # output_path = '/vol/research/nlg/frame_finder/'
-    output_path = ''
+    output_path = '/vol/research/nlg/frame_finder/'
+    # output_path = ''
 
     tokenizer = get_tokenizer(model_name, add_prefix_space=True)
     script = get_hf_ds_scripts_path('sesame')
@@ -111,7 +114,7 @@ if __name__ == '__main__':
         # for k,v in ds.items():
         #     ds[k] = get_sent_label(v, combine_func, 'sent_id')
     else:
-        model_class=RobertaForTokenClassification
+        model_class = RobertaForTokenClassification
 
     ds = ds.map(
         tokenize_alingn_labels_replace_with_mask_and_add_type_ids, fn_kwargs={'do_mask':do_mask}
@@ -126,15 +129,15 @@ if __name__ == '__main__':
     eval_ds = eval_ds.rename_column('is_target', 'token_type_ids')
 
     args = get_base_hf_args(
-        output_dir = output_path + 'checkpoints/sent_no_mask_ff/',
-        train_batch_size=8,
-        epochs=3,
+        output_dir = output_path + 'checkpoints/no_mask_ff/',
+        train_batch_size=32,
+        epochs=4,
         lr=5e-5,
-        logging_steps = 20,
+        logging_steps = 50,
         # evaluation_strategy = 'epoch',
         evaluation_strategy = 'steps',
-        eval_steps=20,
-        logging_dir = output_path + 'logs/sent_no_mask_ff',
+        eval_steps=50,
+        logging_dir = output_path + 'logs/no_mask_ff',
     )
 
     model = get_model(model_class, model_name, num_labels = len(label_list))
