@@ -61,10 +61,11 @@ class FrameFinder(RobertaForTokenClassification):
             sent_labels = torch.stack([torch.nn.functional.one_hot(torch.tensor(v), num_classes=self.config.num_labels).sum(dim=0) for v in sent_labels]).float()
             sent_labels = sent_labels.to(self.device)
         else:
+            labels[labels==-100]=0
             sent_labels = torch.zeros(labels.size(0), self.config.num_labels, device=self.device).scatter_(1, labels, 1)
             sent_labels[:, 0] = 0
         loss_sent = torch.nn.functional.binary_cross_entropy_with_logits(logits[:, 0, :], sent_labels)
-        loss += 0.2 * loss_sent
+        loss += 1 * loss_sent
 
         if not return_dict:
             output = (logits,) + outputs[2:]

@@ -1,7 +1,7 @@
 from lyc.utils import get_tokenizer, get_model
 from lyc.data import get_hf_ds_scripts_path, get_tokenized_ds, processor, get_dataloader
 from lyc.train import get_base_hf_args, HfTrainer
-from lyc.eval import tagging_eval_for_trainer
+from lyc.eval import frame_finder_eval_for_trainer
 import sys
 import numpy as np
 import datasets
@@ -94,7 +94,7 @@ def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds, do_mask=True):
 if __name__ == '__main__':
     model_name, data_dir, = sys.argv[1:]
     add_sent_labels = True
-    do_mask = True
+    do_mask = False
     output_path = '/vol/research/nlg/frame_finder/'
     # output_path = ''
 
@@ -148,7 +148,7 @@ if __name__ == '__main__':
         data_collator=data_collator,
         tokenizer=tokenizer,
         callbacks=[TensorBoardCallback()],
-        compute_metrics=tagging_eval_for_trainer
+        compute_metrics=frame_finder_eval_for_trainer
     )
 
     trainer.train()
