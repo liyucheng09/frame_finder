@@ -49,14 +49,15 @@ def get_sent_label(ds, combine_func, group_column):
 def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds, do_mask=True):
     results={}
 
-    target_index = None
+    target_ids = []
     for i in range(len(ds['frame_tags'])):
         if ds['frame_tags'][i]:
-            target_index = i
+            target_ids.append(i)
     
     if do_mask:
         tokens = ds['tokens']
-        tokens[target_index] = '<mask>'
+        for target_idx in target_ids:
+            tokens[target_idx] = '<mask>'
         ds['tokens'] = tokens
 
     for k,v in ds.items():
@@ -80,7 +81,7 @@ def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds, do_mask=True):
                 label_ids.append(label[word_idx])
             else:
                 label_ids.append(-100)
-            if word_idx == target_index:
+            if word_idx in target_ids:
                 is_target.append(1)
             else:
                 is_target.append(0)
@@ -93,7 +94,7 @@ def tokenize_alingn_labels_replace_with_mask_and_add_type_ids(ds, do_mask=True):
 
 if __name__ == '__main__':
     model_name, data_dir, = sys.argv[1:]
-    add_sent_labels = True
+    add_sent_labels = False
     do_mask = False
     # output_path = '/vol/research/nlg/frame_finder/'
     output_path = ''
@@ -126,13 +127,13 @@ if __name__ == '__main__':
 
     args = get_base_hf_args(
         output_dir = output_path + 'checkpoints/sent_no_mask_ff/',
-        train_batch_size=2,
+        train_batch_size=8,
         epochs=3,
         lr=5e-5,
-        logging_steps = 50,
+        logging_steps = 20,
         # evaluation_strategy = 'epoch',
         evaluation_strategy = 'steps',
-        eval_steps=1,
+        eval_steps=20,
         logging_dir = output_path + 'logs/sent_no_mask_ff',
     )
 
